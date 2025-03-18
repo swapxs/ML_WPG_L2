@@ -1,0 +1,48 @@
+services:
+  kafka:
+    image: confluentinc/cp-kafka:latest
+    container_name: kafka
+    environment:
+      KAFKA_PROCESS_ROLES: "broker,controller"
+      KAFKA_NODE_ID: 1
+      KAFKA_LISTENERS: "PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093"
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: "CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT"
+      KAFKA_ADVERTISED_LISTENERS: "PLAINTEXT://localhost:9092"
+      KAFKA_CONTROLLER_QUORUM_VOTERS: "1@kafka:9093"
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+      KAFKA_LOG_DIRS: "/tmp/kraft-combined-logs"
+    ports:
+      - "9092:9092"
+    command:
+      - sh
+      - -c
+      - |
+        # Format the storage for KRaft (ignore if already formatted)
+        /usr/bin/kafka-storage format \
+          --ignore-formatted \
+          --cluster-id=$(kafka-storage random-uuid) \
+          --config /etc/kafka/kafka.properties
+        # Start Kafka
+        /etc/confluent/docker/run
+
+  spark:
+    image: apache/spark:latest
+    container_name: spark
+    depends_on:
+      - kafka
+    environment:
+      SPARK_WORKER_CORES: 2
+      SPARK_WORKER_MEMORY: 2g
+    ports:
+      - "4040:4040"   # Spark UI for running applications
+      - "8080:8080"   # Spark Master Web UI if you configure Spark in standalone master mode
+    volumes:
+      - ./data:/opt/spark-data
+      - ./scripts:/opt/spark-scripts
+      - ./checkpoint:/opt/spark-checkpoint
+      - ./delta:/opt/delta
+
