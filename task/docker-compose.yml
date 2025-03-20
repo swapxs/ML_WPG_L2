@@ -1,48 +1,80 @@
 services:
+  zookeeper:
+    image: confluentinc/cp-zookeeper:latest
+    container_name: zookeeper
+    hostname: zookeeper
+    ports:
+      - "2181:2181"
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+      ZOOKEEPER_SYNC_LIMIT: 2
+    volumes:
+      - ./zookeeper_data:/var/lib/zookeeper
+
   kafka:
     image: confluentinc/cp-kafka:latest
     container_name: kafka
-    environment:
-      KAFKA_PROCESS_ROLES: "broker,controller"
-      KAFKA_NODE_ID: 1
-      KAFKA_LISTENERS: "PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093"
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: "CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT"
-      KAFKA_ADVERTISED_LISTENERS: "PLAINTEXT://localhost:9092"
-      KAFKA_CONTROLLER_QUORUM_VOTERS: "1@kafka:9093"
-      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
-      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
-      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
-      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
-      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
-      KAFKA_LOG_DIRS: "/tmp/kraft-combined-logs"
+    hostname: kafka
+    depends_on:
+      - zookeeper
     ports:
       - "9092:9092"
-    command:
-      - sh
-      - -c
-      - |
-        # Format the storage for KRaft (ignore if already formatted)
-        /usr/bin/kafka-storage format \
-          --ignore-formatted \
-          --cluster-id=$(kafka-storage random-uuid) \
-          --config /etc/kafka/kafka.properties
-        # Start Kafka
-        /etc/confluent/docker/run
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:9092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+    command: sudo chown -R 1000:1000 ./kafka_data
+    volumes:
+      - ./kafka_data:/var/lib/kafka/data
 
-  spark:
-    image: apache/spark:latest
-    container_name: spark
+  spark-master:
+    image: bitnami/spark:latest
+    container_name: spark-master
+    environment:
+      - SPARK_MODE=master
+      - SPARK_RPC_AUTHENTICATION_ENABLED=no
+      - SPARK_RPC_ENCRYPTION_ENABLED=no
+      - SPARK_LOCAL_STORAGE_ENCRYPTION_ENABLED=no
+      - SPARK_SSL_ENABLED=no
+    ports:
+      - "7077:7077"
+      - "8080:8080"
+    volumes:
+      - ./spark_data:/bitnami/spark
+
+  spark-worker:
+    image: bitnami/spark:latest
+    container_name: spark-worker
+    depends_on:
+      - spark-master
+    environment:
+      - SPARK_MODE=worker
+      - SPARK_MASTER_URL=spark://spark-master:7077
+      - SPARK_WORKER_MEMORY=1G
+      - SPARK_RPC_AUTHENTICATION_ENABLED=no
+      - SPARK_RPC_ENCRYPTION_ENABLED=no
+      - SPARK_LOCAL_STORAGE_ENCRYPTION_ENABLED=no
+      - SPARK_SSL_ENABLED=no
+    ports:
+      - "8081:8081"
+    volumes:
+      - ./spark_data:/bitnami/spark
+
+  jupyter:
+    image: quay.io/jupyter/pyspark-notebook:latest
+    container_name: jupyter
+    ports:
+      - "8888:8888"
+    volumes:
+      - ./notebooks:/home/swapxs/work
+      - ./data:/data
+    environment:
+      - GRANT_SUDO=yes
+    command: start-notebook.sh --NotebookApp.token=''
     depends_on:
       - kafka
-    environment:
-      SPARK_WORKER_CORES: 2
-      SPARK_WORKER_MEMORY: 2g
-    ports:
-      - "4040:4040"   # Spark UI for running applications
-      - "8080:8080"   # Spark Master Web UI if you configure Spark in standalone master mode
-    volumes:
-      - ./data:/opt/spark-data
-      - ./scripts:/opt/spark-scripts
-      - ./checkpoint:/opt/spark-checkpoint
-      - ./delta:/opt/delta
-
+      - spark-master
+      - spark-worker
