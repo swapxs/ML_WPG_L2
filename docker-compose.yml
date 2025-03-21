@@ -69,7 +69,7 @@ services:
       - "8888:8888"
     volumes:
       - ./notebooks:/home/swapxs/work
-      - ./data:/data
+      - ./dataset:/data
     environment:
       - GRANT_SUDO=yes
     command: start-notebook.py --NotebookApp.token=''
