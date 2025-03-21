@@ -26,7 +26,6 @@ services:
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
       KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:9092
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
-    command: sudo chown -R 1000:1000 ./kafka_data
     volumes:
       - ./kafka_data:/var/lib/kafka/data
 
@@ -73,7 +72,7 @@ services:
       - ./data:/data
     environment:
       - GRANT_SUDO=yes
-    command: start-notebook.sh --NotebookApp.token=''
+    command: start-notebook.py --NotebookApp.token=''
     depends_on:
       - kafka
       - spark-master
