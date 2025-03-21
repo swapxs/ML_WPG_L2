@@ -20,17 +20,19 @@ services:
       - zookeeper
     ports:
       - "9092:9092"
+      - "9093:9093"
     environment:
       KAFKA_BROKER_ID: 1
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,PLAINTEXT_HOST://0.0.0.0:9093
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:9092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:9093
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
     volumes:
       - ./kafka_data:/var/lib/kafka/data
 
   spark-master:
-    image: bitnami/spark:latest
+    image: bitnami/spark:3.5.5
     container_name: spark-master
     environment:
       - SPARK_MODE=master
@@ -42,10 +44,13 @@ services:
       - "7077:7077"
       - "8080:8080"
     volumes:
-      - ./spark_data:/bitnami/spark
+      # Share the entire Spark installation using a named volume
+      - spark_installation:/opt/bitnami/spark
+      # Use a separate volume for Spark data if needed
+      - ./spark_data:/bitnami/spark-data
 
   spark-worker:
-    image: bitnami/spark:latest
+    image: bitnami/spark:3.5.5
     container_name: spark-worker
     depends_on:
       - spark-master
@@ -60,7 +65,9 @@ services:
     ports:
       - "8081:8081"
     volumes:
-      - ./spark_data:/bitnami/spark
+      - spark_installation:/opt/bitnami/spark
+      - ./spark_data:/bitnami/spark-data
+      - ./dataset:/data
 
   jupyter:
     image: quay.io/jupyter/pyspark-notebook:latest
@@ -68,13 +75,20 @@ services:
     ports:
       - "8888:8888"
     volumes:
-      - ./notebooks:/home/swapxs/work
+      - ./notebooks:/home/jovyan/work
       - ./dataset:/data
+      # Mount the shared Spark installation read-only
+      - spark_installation:/opt/bitnami/spark:ro
     environment:
       - GRANT_SUDO=yes
-      - SPARK_SUBMIT_OPTIONS=--packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.3.0
+      # Force the Jupyter container to use the shared Spark distribution
+      - SPARK_HOME=/opt/bitnami/spark
+      - SPARK_SUBMIT_OPTIONS=--packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.5
     command: start-notebook.py --NotebookApp.token=''
     depends_on:
       - kafka
       - spark-master
       - spark-worker
+
+volumes:
+  spark_installation:
