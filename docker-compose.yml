@@ -48,7 +48,7 @@ services:
     volumes:
       - spark_installation:/opt/bitnami/spark
       - ./spark_data:/bitnami/spark-data
-      - ./jars:/opt/bitnami/spark/jars/delta
+      - ./jars/delta-spark_2.12-3.5.5.jar:/opt/bitnami/spark/jars/delta-spark_2.12-3.5.5.jar
       - ./delta_output:/data/delta_output
       - ./delta_checkpoint:/tmp/delta_kafka_subscriber_checkpoint
 
@@ -71,7 +71,7 @@ services:
     volumes:
       - spark_installation:/opt/bitnami/spark
       - ./spark_data:/bitnami/spark-data
-      - ./jars:/opt/bitnami/spark/jars/delta
+      - ./jars/delta-spark_2.12-3.5.5.jar:/opt/bitnami/spark/jars/delta-spark_2.12-3.5.0.jar
       - ./dataset:/data
       - ./delta_output:/data/delta_output
       - ./delta_checkpoint:/tmp/delta_kafka_subscriber_checkpoint

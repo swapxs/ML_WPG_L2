@@ -1,0 +1,10 @@
+# Example Dockerfile for Spark 3.5.x Worker/Master with Delta
+FROM bitnami/spark:3.5.5
+
+USER root
+
+RUN pip install delta-spark
+
+# Return to the original non-root user
+USER 1001
+
