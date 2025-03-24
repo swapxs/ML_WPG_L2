@@ -3,3 +3,4 @@ kafka_data
 notebooks/.ipynb_checkpoints
 delta_checkpoint
 delta_output
+err
