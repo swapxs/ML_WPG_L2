@@ -2,7 +2,7 @@ from pyspark.sql import SparkSession as ss
 from pyspark.sql.types import (
     StructType as st,
     StructField as sf,
-    StringType as strt,
+    StringType as srt,
     DoubleType as dt,
     LongType as lt
 )
@@ -19,8 +19,8 @@ from pyspark.sql.functions import (
     array
 )
 
-spark = ss.builder \
-    .appName("KafkaSubscriberBoundedOnce") \
+sprk = ss.builder \
+    .appName("KafkaSubscriber") \
     .master("spark://spark-master:7077") \
     .config(
         "spark.jars.packages", 
@@ -32,10 +32,10 @@ spark = ss.builder \
     .config("spark.sql.catalog.spark_catalog", "org.apache.spark.sql.delta.catalog.DeltaCatalog") \
     .getOrCreate()
 
-spark.sparkContext.setLogLevel("WARN")
+sprk.sparkContext.setLogLevel("WARN")
 
 json_schema = st([
-    sf("Date/Time", strt(), True),
+    sf("Date/Time", srt(), True),
     sf("LV ActivePower (kW)", dt(), True),
     sf("Wind Speed (m/s)", dt(), True),
     sf("Theoretical_Power_Curve (KWh)", dt(), True),
@@ -43,7 +43,7 @@ json_schema = st([
     sf("row_id", lt(), True)
 ])
 
-kafka_df = spark.readStream \
+kafka_df = sprk.readStream \
     .format("kafka") \
     .option("kafka.bootstrap.servers", "kafka:9092") \
     .option("subscribe", "xenon-topic") \
@@ -92,4 +92,4 @@ query = final_df.writeStream \
     .start(delta_path)
 
 query.awaitTermination()
-spark.stop()
+sprk.stop()
