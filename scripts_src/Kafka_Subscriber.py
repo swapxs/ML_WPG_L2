@@ -16,7 +16,7 @@ from pyspark.sql.functions import (
     current_timestamp,
     lit,
     map_from_arrays,
-    array
+    array,
 )
 
 sprk = ss.builder \
@@ -30,9 +30,10 @@ sprk = ss.builder \
     .config("spark.jars.repositories", "https://repos.spark-packages.org") \
     .config("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension") \
     .config("spark.sql.catalog.spark_catalog", "org.apache.spark.sql.delta.catalog.DeltaCatalog") \
+    .config("spark.executor.cores", "4") \
+    .config("spark.executor.memory", "10g")\
+    .config("spark.cores.max", "4") \
     .getOrCreate()
-
-sprk.sparkContext.setLogLevel("WARN")
 
 json_schema = st([
     sf("Date/Time", srt(), True),
@@ -48,6 +49,7 @@ kafka_df = sprk.readStream \
     .option("kafka.bootstrap.servers", "kafka:9092") \
     .option("subscribe", "xenon-topic") \
     .option("startingOffsets", "earliest") \
+    .option("failOnDataLoss", "false") \
     .load()
 
 df = kafka_df.select(
@@ -81,15 +83,15 @@ final_df = df.select(
     ).alias("signals")
 )
 
-chkpnt_dir = "/tmp/delta_kafka_subscriber_checkpoint"
-delta_path = "/data/delta_output"
+final_df.printSchema()
 
-query = final_df.writeStream \
+final_df.writeStream \
     .format("delta") \
-    .option("checkpointLocation", chkpnt_dir) \
+    .option("checkpointLocation", "/tmp/delta_kafka_subscriber_checkpoint") \
     .outputMode("append") \
-    .trigger(once=True) \
-    .start(delta_path)
+    .start("/data/delta_output")
 
-query.awaitTermination()
+df = sprk.read.format("delta").load("/data/delta_output")
+df.show(5)
+
 sprk.stop()

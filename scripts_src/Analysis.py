@@ -18,9 +18,7 @@ from pyspark.sql.types import (
     StringType as srt,
 )
 
-import matplotlib.pyplot as plt
-
-scb = ( # SparkContext Builder scb
+scb = (
     ss.builder
         .appName("Analysis") \
         .master("spark://spark-master:7077") \
