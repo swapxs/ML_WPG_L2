@@ -1,4 +1,4 @@
 FROM quay.io/jupyter/pyspark-notebook:latest
 
 RUN pip install delta-spark
-COPY ./delta-spark_2.12-3.5.5.jar /usr/local/spark/jars/
+COPY ./jars/delta-spark_2.12-3.5.5.jar /usr/local/spark/jars/
